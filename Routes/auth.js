@@ -340,7 +340,7 @@ router.post('/login', [
         res.json(token)
     } catch (error) {
         console.error(error.message)
-        return res.status(420).send(`internal server error in ${role} login`)
+        return res.status(420).send(`internal server error in ${req.body.role} login`)
     }
 })
 
