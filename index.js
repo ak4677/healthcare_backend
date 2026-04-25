@@ -32,7 +32,9 @@ app.use('/api/chat', require('./Routes/chat'));
 app.use("/api/appointments", require("./Routes/Appointments"));
 app.use('/api/consultation',  require('./Routes/consultation'));
 
-
+console.log("ENV CHECK:", {
+  MONGO_URI: process.env.MONGO_URI,
+});
 // ─────────────────────────────────────────────────────────────────────────────
 // START SERVER  (replace your existing app.listen with this)
 // ─────────────────────────────────────────────────────────────────────────────
