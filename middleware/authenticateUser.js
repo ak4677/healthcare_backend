@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const secret_signature = "doctor key"
+const secret_signature = process.env.DOCTOR_SECRET_SIGNATURE
 
 
 // const doctormid=(req,res,next)=>{
@@ -25,7 +25,11 @@ const authenticateUser = (req, res, next) => {
     // console.log("Decoded JWT:", decoded);
     req.user = decoded; // { id, role }
     next();
-  } catch (err) {
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Session expired" });
+    }
+
     res.status(401).json({ error: "Invalid token" });
   }
 };

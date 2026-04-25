@@ -11,15 +11,29 @@ const patient = require("../modules/patient");
 const lab_assistant = require("../modules/lab_assistant");
 const checkRole = require("../middleware/checkRole");
 const authenticateUser = require("../middleware/authenticateUser");
+const bcrypt = require("bcrypt");
+const axios = require("axios");
+const doc_secret_signature = process.env.DOCTOR_SECRET_SIGNATURE
+const pati_secret_signature = process.env.PATIENT_SECRET_SIGNATURE
 
-const doc_secret_signature = "doctor key"
-const pati_secret_signature = "patient key"
 
+//verify admin
+router.post("/verify-admin-key", async (req, res) => {
+    const { key } = req.body;
+
+    const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
+
+    if (key === ADMIN_SECRET_KEY) {
+        return res.json({ valid: true });
+    }
+
+    res.status(401).json({ valid: false });
+});
 
 //doctor accont creation on /api/auth/createadmin
-router.post('/createadmin', authenticateUser, checkRole(['admin']), [
+router.post('/createadmin', [
     body('name').isLength({ min: 6 }),
-    // body('passward').isLength({ min: 4 }).exists(),
+    body('passward').isLength({ min: 4 }).exists(),
     body('email').isEmail(),
     body('Number').isLength({ min: 10 }, { max: 10 })
 ], async (req, res) => {
@@ -32,13 +46,14 @@ router.post('/createadmin', authenticateUser, checkRole(['admin']), [
         if (newadmin) {
             return res.status(400).send("user already exist")
         }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(req.body.passward, salt);
         newadmin = await admin.create({
             name: req.body.name,
             email: req.body.email,
-            // passward: req.body.passward,
+            passward: hashedPassword,
             Number: req.body.Number,
-            passward: null,
-            isActivated: false
         })
         let saveadmin = await newadmin.save();
         // res.json(savedoc);
@@ -49,7 +64,10 @@ router.post('/createadmin', authenticateUser, checkRole(['admin']), [
         // }
         // let token = jwt.sign(data, doc_secret_signature)
         // res.json({ token })
-        
+        // await admin.save();
+
+        res.json("Admin created successfully");
+
     } catch (error) {
         console.error(error.message)
         res.status(420).send("internal server error in creation of admin")
@@ -226,7 +244,14 @@ router.post('/:role/signup', [
         // const hashedPassword = await bcrypt.hash(passward, salt);
         // user.passward = hashedPassword;
 
-        user.passward = passward;
+        // user.passward = passward;
+        // user.isActivated = true;
+        // await user.save();
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(passward, salt);
+
+        user.passward = hashedPassword;
         user.isActivated = true;
         await user.save();
 
@@ -258,22 +283,52 @@ router.post('/login', [
         // receptionist: Receptionist // add when needed
     };
     try {
+        const { captchaToken } = req.body;
 
+        if (!captchaToken) {
+            return res.status(400).json({ message: "Captcha required" });
+        }
+
+        const captchaResponse = await axios.post(
+            `https://www.google.com/recaptcha/api/siteverify`,
+            null,
+            {
+                params: {
+                    secret: process.env.RECAPTCHA_SECRET,
+                    response: captchaToken
+                }
+            });
+
+        if (!captchaResponse.data.success) {
+            return res.status(400).json({ message: "Captcha verification failed" });
+        }
         const role = req.body.role.toLowerCase();
         const model = roleModelMap[role];
         const user = await model.findOne({ email: req.body.email });
         if (!user || !user.isActivated) {
             return res.status(420).send("wrong credential of account is deactivated");
         }
-        if (user.passward !== req.body.passward) {
+        // if (user.passward !== req.body.passward) {
+        //     return res.status(420).send("wornd passward");
+        // }
+        // res.json(savedoc);
+        // console.log(req.body.passward)
+        const isMatch = await bcrypt.compare(req.body.passward, user.passward);
+
+        if (!isMatch) {
             return res.status(420).send("wornd passward");
         }
-        // res.json(savedoc);
+
+        // const token = jwt.sign(
+        //     { id: user._id, role: req.body.role.toLowerCase() },
+        //     doc_secret_signature,
+        //     // { expiresIn: "1h" }
+        // );
 
         const token = jwt.sign(
             { id: user._id, role: req.body.role.toLowerCase() },
             doc_secret_signature,
-            // { expiresIn: "1h" }
+            { expiresIn: "24h" }
         );
         // let data = {
         //     doctor: {

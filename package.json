@@ -7,10 +7,15 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "socket": "node socket.js",
+    "dev": "concurrently \"nodemon index.js\" \"nodemon socket.js\"",
+    "dev:api": "nodemon index.js",
+    "dev:socket": "nodemon socket.js"
   },
   "dependencies": {
     "axios": "^1.13.6",
+    "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^4.21.2",
@@ -19,6 +24,8 @@
     "mongoose": "^8.12.1",
     "multer": "^2.1.0",
     "nodemon": "^3.1.9",
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0",
     "validator": "^13.12.0"
   }
 }
